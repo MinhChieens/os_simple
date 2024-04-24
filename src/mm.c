@@ -88,16 +88,12 @@ int vmap_page_range(struct pcb_t *caller,           // process call
                     struct framephy_struct *frames, // list of the mapped frames
                     struct vm_rg_struct *ret_rg)    // return mapped region, the real mapped fp
 {                                                   // no guarantee all given pages are mapped
-  // uint32_t * pte = malloc(sizeof(uint32_t));
-  struct framephy_struct *fpit = malloc(sizeof(struct framephy_struct));
-  // int  fpn;
+  struct framephy_struct *fpit;
+  int fpn;
   int pgit = 0;
   int pgn = PAGING_PGN(addr);
 
   ret_rg->rg_end = ret_rg->rg_start = addr; // at least the very first space is usable
-
-  fpit->fp_next = frames;
-
   /* TODO map range of frame to address space
    *      [addr to addr + pgnum*PAGING_PAGESZ
    *      in page table caller->mm->pgd[]
@@ -105,7 +101,29 @@ int vmap_page_range(struct pcb_t *caller,           // process call
 
   /* Tracking for later page replacement activities (if needed)
    * Enqueue new usage page */
-  enlist_pgn_node(&caller->mm->fifo_pgn, pgn + pgit);
+  // enlist_pgn_node(&caller->mm->fifo_pgn, pgn+pgit);
+
+  printf("NUm Frame%d \n", pgnum);
+
+  fpit = frames;
+
+  for (; pgit < pgnum; pgit++)
+  {
+    uint32_t *pte = malloc(sizeof(uint32_t));
+    init_pte(pte, 1, 1, 0, 0, 0, 0);
+    fpn = fpit->fpn;
+    printf("Free frame is: %d\n", fpn);
+    pte_set_swap(pte, 0, 0);
+    pte_set_fpn(pte, fpn);
+    caller->mm->pgd[pgn + pgit] = *pte;
+    printf("Mapped region [%ld->", ret_rg->rg_end);
+    ret_rg->rg_end += PAGING_PAGESZ;
+    printf("%ld] to frame %d with address %08x\n", ret_rg->rg_end, fpn, *pte);
+    fpit = fpit->fp_next;
+    enlist_pgn_node(&caller->mm->fifo_pgn, pgn + pgit);
+    free(pte);
+  }
+  caller->mram->used_fp_list = frames;
 
   return 0;
 }
@@ -120,15 +138,21 @@ int vmap_page_range(struct pcb_t *caller,           // process call
 int alloc_pages_range(struct pcb_t *caller, int req_pgnum, struct framephy_struct **frm_lst)
 {
   int pgit, fpn;
-  // struct framephy_struct *newfp_str;
-
+  struct framephy_struct *newfp_str;
+  printf("alloc_pages_range: %d\n", req_pgnum);
   for (pgit = 0; pgit < req_pgnum; pgit++)
   {
     if (MEMPHY_get_freefp(caller->mram, &fpn) == 0)
     {
+      newfp_str = malloc(sizeof(struct framephy_struct));
+      newfp_str->fpn = fpn;
+      newfp_str->fp_next = *frm_lst;
+      *frm_lst = newfp_str;
     }
     else
     { // ERROR CODE of obtaining somes but not enough frames
+      printf("Not enough frames \n");
+      return -3000;
     }
   }
 
