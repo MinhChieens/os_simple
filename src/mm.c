@@ -82,6 +82,7 @@ int pte_set_fpn(uint32_t *pte, int fpn)
 /*
  * vmap_page_range - map a range of page at aligned address
  */
+
 int vmap_page_range(struct pcb_t *caller,           // process call
                     int addr,                       // start address which is aligned to pagesz
                     int pgnum,                      // num of mapping page
@@ -103,10 +104,10 @@ int vmap_page_range(struct pcb_t *caller,           // process call
    * Enqueue new usage page */
   // enlist_pgn_node(&caller->mm->fifo_pgn, pgn+pgit);
 
-  printf("NUm Frame%d \n", pgnum);
-
   fpit = frames;
 
+  // uint32_t *pte = malloc(sizeof(uint32_t));
+  // init_pte(pte, 1, 1, 0, 0, 0, 0);
   for (; pgit < pgnum; pgit++)
   {
     uint32_t *pte = malloc(sizeof(uint32_t));
