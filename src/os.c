@@ -135,6 +135,7 @@ static void *ld_routine(void *args)
 		struct pcb_t *proc = load(ld_processes.path[i]);
 #ifdef MLQ_SCHED
 		proc->prio = ld_processes.prio[i];
+		proc->priority = proc->prio;
 #endif
 		while (current_time() < ld_processes.start_time[i])
 		{
