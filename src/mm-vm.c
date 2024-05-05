@@ -24,8 +24,8 @@ int enlist_vm_freerg_list(struct mm_struct *mm, struct vm_rg_struct rg_elmt)
     return -1;
 
   if (rg_node != NULL)
-    copy_rg->rg_next = rg_node;
-  printf("Enlist %p\n", &copy_rg);
+    rg_elmt.rg_next = rg_node;
+
   /* Enlist the new region */
   mm->mmap->vm_freerg_list = copy_rg;
 
@@ -83,7 +83,7 @@ int __alloc(struct pcb_t *caller, int vmaid, int rgid, int size, int *alloc_addr
 {
   /*Allocate at the toproof */
   struct vm_rg_struct rgnode;
-
+  printf("Allocc %d\n", size);
   if (get_free_vmrg_area(caller, vmaid, size, &rgnode) == 0)
   {
     caller->mm->symrgtbl[rgid].rg_start = rgnode.rg_start;
@@ -93,7 +93,6 @@ int __alloc(struct pcb_t *caller, int vmaid, int rgid, int size, int *alloc_addr
 
     return 0;
   }
-
   /* TODO get_free_vmrg_area FAILED handle the region management (Fig.6)*/
 
   /*Attempt to increate limit to get space */
@@ -117,27 +116,9 @@ int __alloc(struct pcb_t *caller, int vmaid, int rgid, int size, int *alloc_addr
   /*Successful increase limit */
   caller->mm->symrgtbl[rgid].rg_start = old_sbrk;
   caller->mm->symrgtbl[rgid].rg_end = old_sbrk + size;
-  //! Update free list
-  if (cur_vma->vm_freerg_list->rg_start >= cur_vma->vm_freerg_list->rg_end)
-  {
-    //? if head free list empty
-    cur_vma->vm_freerg_list->rg_start = old_sbrk;      //! old_sbrk + size;
-    cur_vma->vm_freerg_list->rg_end = old_sbrk + size; //!
 
-    // cur_vma->vm_freerg_list->rg_start = old_sbrk + size;
-    // cur_vma->vm_freerg_list->rg_end = cur_vma->sbrk;
-  }
-  else
-  {
-    //?insert to freelist
-    struct vm_rg_struct temp_rg;
-    temp_rg.rg_start = old_sbrk;
-    temp_rg.rg_end = cur_vma->sbrk;
-
-    enlist_vm_freerg_list(caller->mm, temp_rg);
-  }
   *alloc_addr = old_sbrk;
-
+  printf("get Free in alooc done!\n");
   return 0;
 }
 
@@ -157,7 +138,7 @@ int __free(struct pcb_t *caller, int vmaid, int rgid)
   rgnode = *get_symrg_byid(caller->mm, rgid);
   rgnode.rg_next = NULL;
   /* TODO: Manage the collect freed region to freerg_list */
-  caller->mm->symrgtbl[rgid].rg_start = caller->mm->symrgtbl[rgid].rg_end = 0;
+
   /*enlist the obsoleted memory region */
   enlist_vm_freerg_list(caller->mm, rgnode);
   printf("Free done\n");
@@ -235,7 +216,6 @@ int pg_getpage(struct mm_struct *mm, int pgn, int *fpn, struct pcb_t *caller)
 
     enlist_pgn_node(&caller->mm->fifo_pgn, pgn);
   }
-
   *fpn = PAGING_FPN(pte);
   printf("swapp done!\n");
   return 0;
@@ -249,10 +229,10 @@ int pg_getpage(struct mm_struct *mm, int pgn, int *fpn, struct pcb_t *caller)
  */
 int pg_getval(struct mm_struct *mm, int addr, BYTE *data, struct pcb_t *caller)
 {
+
   int pgn = PAGING_PGN(addr);
   int off = PAGING_OFFST(addr);
   int fpn;
-
   /* Get the page to MEMRAM, swap from MEMSWAP if needed */
   if (pg_getpage(mm, pgn, &fpn, caller) != 0)
     return -1; /* invalid page access */
@@ -279,6 +259,7 @@ int pg_setval(struct mm_struct *mm, int addr, BYTE value, struct pcb_t *caller)
   /* Get the page to MEMRAM, swap from MEMSWAP if needed */
   if (pg_getpage(mm, pgn, &fpn, caller) != 0)
     return -1; /* invalid page access */
+  printf("write pageNum %d - off: %d - frame: %d\n", pgn, off, fpn);
 
   int phyaddr = (fpn << PAGING_ADDR_FPN_LOBIT) + off;
 

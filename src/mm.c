@@ -106,24 +106,26 @@ int vmap_page_range(struct pcb_t *caller,           // process call
 
   fpit = frames;
 
-  // uint32_t *pte = malloc(sizeof(uint32_t));
-  // init_pte(pte, 1, 1, 0, 0, 0, 0);
   for (; pgit < pgnum; pgit++)
   {
-    uint32_t *pte = malloc(sizeof(uint32_t));
-    init_pte(pte, 1, 1, 0, 0, 0, 0);
+    // uint32_t *pte = malloc(sizeof(uint32_t));
+    // init_pte(pte, 1, 1, 0, 0, 0, 0);
     fpn = fpit->fpn;
     printf("Free frame is: %d\n", fpn);
     pte_set_swap(pte, 0, 0);
     pte_set_fpn(pte, fpn);
     caller->mm->pgd[pgn + pgit] = *pte;
+    int tfpn;
+    tlb_cache_write(caller->tlb, caller->pid, pgn + pgit, 0, fpn);
+    tfpn = PAGING_FPN(caller->mm->pgd[pgn + pgit]);
+    printf("TFPN %d\n", tfpn);
     printf("Mapped region [%ld->", ret_rg->rg_end);
     ret_rg->rg_end += PAGING_PAGESZ;
     printf("%ld] to frame %d with address %08x\n", ret_rg->rg_end, fpn, *pte);
     fpit = fpit->fp_next;
     enlist_pgn_node(&caller->mm->fifo_pgn, pgn + pgit);
-    free(pte);
   }
+  free(pte);
   caller->mram->used_fp_list = frames;
 
   return 0;
@@ -385,6 +387,7 @@ int print_pgtbl(struct pcb_t *caller, uint32_t start, uint32_t end)
 
   for (pgit = pgn_start; pgit < pgn_end; pgit++)
   {
+
     printf("%08ld: %08x\n", pgit * sizeof(uint32_t), caller->mm->pgd[pgit]);
   }
 
