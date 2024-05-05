@@ -74,6 +74,7 @@ int tlb_cache_write(struct memphy_struct *mp, int pid, int pgnum, int frame)
    /*duyệt mảng để kiểm tra line nào còn trống, nếu không còn trống thì dùng fifo*/
    /*để bỏ một line ra*/
    for(int i = 0; i < CACHE_LINE; i++){
+   	  //truong hop nay dung de kiem tra neu co cho trong thi dien thong tin moi vao entry
       if(mp->tlbtable->cache_line[i]->pid == -1){
             mp->tlbtable->cache_line[i]->frame = frame;
             mp->tlbtable->cache_line[i]->pgnum = pgnum;
@@ -81,6 +82,7 @@ int tlb_cache_write(struct memphy_struct *mp, int pid, int pgnum, int frame)
             mp->tlbtable->cache_line[i]->hit = 0;
             return 0;
       }
+      //truong hop nay dung de kiem tra pgnum va pid da co trong tlb chua
       if(mp->tlbtable->cache_line[i]->pgnum == pgnum 
       && mp->tlbtable->cache_line[i]->pid == pid){
          return 0;
@@ -88,36 +90,16 @@ int tlb_cache_write(struct memphy_struct *mp, int pid, int pgnum, int frame)
       full = 1;      
    }
    if(full){
-      return -1;
-   }
-   /*bị trùng*/
-
-   /*mp->tlbtable->cache_line[index]->frame = frame;
-   mp->tlbtable->cache_line[index]->pgnum = pgnum;
-   mp->tlbtable->cache_line[index]->pid = tag;
-   mp->tlbtable->cache_line[index]->hit = 0;*/
-
-   /*for (int i = 0; i < 10; i++)
-   {
-      if (mp->tlbtable[tag].cache_line[i].pid == -1)
-      {
-
-         mp->tlbtable[tag].cache_line[i].pid = pid;
-         mp->tlbtable[tag].cache_line[i].pgnum = pgnum;
-         mp->tlbtable[tag].cache_line[i].frame = frame;
-         return 0;
+      //neu tlb bi day thi ta dung fifo de day mot thang ra ngoai
+      for(int i = 0; i < CACHE_LINE-1; i++){
+      	mp->tlbtable->cache_line[i] = mp->tlbtable->cache_line[i+1];
       }
-   }
-
-   for (int i = 0; i < 9; i++)
-   {
-      mp->tlbtable[tag].cache_line[i].pid = mp->tlbtable[tag].cache_line[i + 1].pid;
-      mp->tlbtable[tag].cache_line[i].pgnum = mp->tlbtable[tag].cache_line[i + 1].pgnum;
-      mp->tlbtable[tag].cache_line[i].frame = mp->tlbtable[tag].cache_line[i + 1].frame;
-   }
-   mp->tlbtable[tag].cache_line[9].pid = pid;
-   mp->tlbtable[tag].cache_line[9].pgnum = pgnum;
-   mp->tlbtable[tag].cache_line[9].frame = frame;*/
+      mp->tlbtable->cache_line[CACHE_LINE-1]->frame = frame;
+      mp->tlbtable->cache_line[CACHE_LINE-1]->pgnum = pgnum;
+      mp->tlbtable->cache_line[CACHE_LINE-1]->pid = pid;
+      mp->tlbtable->cache_line[CACHE_LINE-1]->hit = 0;
+      return 0;
+   }   
    return -1;
 }
 
