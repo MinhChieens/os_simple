@@ -77,11 +77,16 @@ struct tlbline_struct
    int pid;
    int pgnum;
    int frame;
+   int hit;   
 };
 struct tlbentry_struct
-{
-   int tag;
-   struct tlbline_struct cache_line[10];
+{   
+   int total_access;
+   //main memory 1MB
+   //số block trong cache = 
+   //tag
+
+   struct tlbline_struct **cache_line;
 };
 struct memphy_struct
 {
