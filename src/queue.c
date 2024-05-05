@@ -7,23 +7,7 @@ int empty(struct queue_t * q) {
 	return (q->size == 0);
 }
 
-void bubble(struct pcb_t * arr[], int size){
-	if(size == 0) return;
-	int i, j;
-	for(i = 0 ; i < size; i++){
-		for(j = 0; j < size-1; j++){
-			if(arr[j]->priority == arr[j+1]->priority){				
-				continue;
-			}
-			if(arr[j]->priority > arr[j+1]->priority){
-				struct pcb_t * swap = arr[j];
-				arr[j] = arr[j+1];
-				arr[j+1] = swap;
-			}
-		}
-	}
 
-}
 void enqueue(struct queue_t * q, struct pcb_t * proc) {
         /* TODO: put a new process to queue [q] */  
         if(q->size == 0 && proc != NULL){
