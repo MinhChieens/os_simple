@@ -21,6 +21,8 @@
 #include <stdio.h>
 #define init_tlbcache(mp, sz, ...) init_memphy(mp, sz, (1, ##__VA_ARGS__))
 
+#define CACHE_LINE 4096
+#define NUMBER_OF_TAG 16
 /*
  *  tlb_cache_read read TLB cache device
  *  @mp: memphy struct
@@ -28,7 +30,7 @@
  *  @pgnum: page number
  *  @value: obtained value
  */
-int tlb_cache_read(struct memphy_struct *mp, int pid, int pgnum, BYTE value)
+int tlb_cache_read(struct memphy_struct *mp, int pid, int pgnum)
 {
    /* TODO: the identify info is mapped to
     *      cache line by employing:
@@ -48,16 +50,15 @@ int tlb_cache_read(struct memphy_struct *mp, int pid, int pgnum, BYTE value)
    //    return mp->tlbtable[cache_index].pgnum;
    // }
 
-   int tag = pid % mp->maxsz;
-   if (mp->tlbtable[tag].tag == tag)
-   {
-      for (int i = 0; i < 10; i++)
-      {
-         if (mp->tlbtable[tag].cache_line[i].pid == pid && mp->tlbtable[tag].cache_line[i].pgnum == pgnum)
-            return mp->tlbtable[tag].cache_line[i].frame;
+   //cache line 4096   
+   for(int i = 0; i < CACHE_LINE; i++){
+      if(mp->tlbtable->cache_line[i]->pid == pid 
+      && mp->tlbtable->cache_line[i]->pgnum){
+         return mp->tlbtable->cache_line[i]->frame;         
       }
    }
-   return -1;
+
+   return -1;   
    // return 0;
 }
 
@@ -68,17 +69,46 @@ int tlb_cache_read(struct memphy_struct *mp, int pid, int pgnum, BYTE value)
  *  @pgnum: page number
  *  @value: obtained value
  */
-int tlb_cache_write(struct memphy_struct *mp, int pid, int pgnum, BYTE value, int frame)
+int tlb_cache_write(struct memphy_struct *mp, int pid, int pgnum, int frame)
 {
    /* TODO: the identify info is mapped to
     *      cache line by employing:
     *      direct mapped, associated mapping etc.
     */
+   //main memory 1MB
+   //line cache 4096
    if (mp == NULL || mp->tlbtable == NULL)
       return -1;
-   int tag = pid % mp->maxsz;
-   mp->tlbtable[tag].tag = tag;
-   for (int i = 0; i < 10; i++)
+   //int tag = pid % NUMBER_OF_TAG;   
+   //int index = pgnum % CACHE_LINE;
+   int full = 0;
+   /*duyệt mảng để kiểm tra line nào còn trống, nếu không còn trống thì dùng fifo*/
+   /*để bỏ một line ra*/
+   for(int i = 0; i < CACHE_LINE; i++){
+      if(mp->tlbtable->cache_line[i]->pid == -1){
+            mp->tlbtable->cache_line[i]->frame = frame;
+            mp->tlbtable->cache_line[i]->pgnum = pgnum;
+            mp->tlbtable->cache_line[i]->pid = pid;
+            mp->tlbtable->cache_line[i]->hit = 0;
+            return 0;
+      }
+      if(mp->tlbtable->cache_line[i]->pgnum == pgnum 
+      && mp->tlbtable->cache_line[i]->pid == pid){
+         return 0;
+      }         
+      full = 1;      
+   }
+   if(full){
+      return -1;
+   }
+   /*bị trùng*/
+
+   /*mp->tlbtable->cache_line[index]->frame = frame;
+   mp->tlbtable->cache_line[index]->pgnum = pgnum;
+   mp->tlbtable->cache_line[index]->pid = tag;
+   mp->tlbtable->cache_line[index]->hit = 0;*/
+
+   /*for (int i = 0; i < 10; i++)
    {
       if (mp->tlbtable[tag].cache_line[i].pid == -1)
       {
@@ -98,8 +128,8 @@ int tlb_cache_write(struct memphy_struct *mp, int pid, int pgnum, BYTE value, in
    }
    mp->tlbtable[tag].cache_line[9].pid = pid;
    mp->tlbtable[tag].cache_line[9].pgnum = pgnum;
-   mp->tlbtable[tag].cache_line[9].frame = frame;
-   return 0;
+   mp->tlbtable[tag].cache_line[9].frame = frame;*/
+   return -1;
 }
 
 /*
@@ -147,16 +177,20 @@ int TLBMEMPHY_dump(struct memphy_struct *mp)
     *     for tracing the memory content
     */
    printf("==========DUMP TLB_MEMPHY ==========\n");
-   for (int i = 0; i < mp->maxsz; i++)
+   for (int i = 0; i < CACHE_LINE; i++)
    {
-      if (mp->tlbtable[i].tag != -1)
+      if(mp->tlbtable->cache_line[i]->pid != -1){
+         printf("Line %d: numpage %d - frame %d- pid %d\n", i, mp->tlbtable->cache_line[i]->pgnum, mp->tlbtable->cache_line[i]->frame, mp->tlbtable->cache_line[i]->pid);
+      }
+
+      /*if (mp->tlbtable[i].tag != -1)
       {
          for (int j = 0; j < 10; j++)
          {
             if (mp->tlbtable[i].cache_line[j].pid != -1)
                printf("Content in tlbtable is numpage %d - frame %d - pid %d\n", mp->tlbtable[i].cache_line[j].pgnum, mp->tlbtable[i].cache_line[j].frame, mp->tlbtable[i].cache_line[j].pid);
          }
-      }
+      }*/
    }
 
    printf("===============================\n");
@@ -173,16 +207,20 @@ int init_tlbmemphy(struct memphy_struct *mp, int max_size)
    mp->maxsz = max_size;
 
    mp->rdmflg = 1;
-   mp->tlbtable = malloc(max_size * sizeof(struct tlbentry_struct));
-   for (int i = 0; i < max_size; i++)
-   {
-      mp->tlbtable[i].tag = -1;
-      for (int j = 0; j < 10; j++)
-      {
-         mp->tlbtable[i].cache_line[j].frame = -1;
-         mp->tlbtable[i].cache_line[j].pgnum = -1;
-         mp->tlbtable[i].cache_line[j].pid = -1;
+   mp->tlbtable = (struct tlbentry_struct *)malloc(sizeof(struct tlbentry_struct));
+
+   //cache sẽ có 4096 index
+   int new_size = max_size / 16;
+   mp->tlbtable->cache_line = (struct tlbline_struct**)malloc(new_size * sizeof(struct tlbline_struct*));
+   for (int i = 0; i < new_size; i++)
+   {      
+      if(mp->tlbtable->cache_line[i] == NULL){
+      	mp->tlbtable->cache_line[i] = (struct tlbline_struct*)malloc(sizeof(struct tlbline_struct));
       }
+      mp->tlbtable->cache_line[i]->frame = -1;
+      mp->tlbtable->cache_line[i]->pgnum = -1;
+      mp->tlbtable->cache_line[i]->pid = -1;      
+      mp->tlbtable->cache_line[i]->hit = 0;
    }
    return 0;
 }
