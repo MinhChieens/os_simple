@@ -116,7 +116,26 @@ int __alloc(struct pcb_t *caller, int vmaid, int rgid, int size, int *alloc_addr
   /*Successful increase limit */
   caller->mm->symrgtbl[rgid].rg_start = old_sbrk;
   caller->mm->symrgtbl[rgid].rg_end = old_sbrk + size;
+  if (cur_vma->vm_freerg_list->rg_start >= cur_vma->vm_freerg_list->rg_end)
 
+  {
+
+    cur_vma->vm_freerg_list->rg_start = old_sbrk + size;
+
+    cur_vma->vm_freerg_list->rg_end = cur_vma->sbrk;
+  }
+
+  else
+
+  {
+    struct vm_rg_struct rg_elmt_pointer;
+
+    rg_elmt_pointer.rg_start = old_sbrk + size;
+
+    rg_elmt_pointer.rg_end = cur_vma->sbrk;
+
+    enlist_vm_freerg_list(caller->mm, rg_elmt_pointer);
+  }
   *alloc_addr = old_sbrk;
   printf("get Free in alooc done!\n");
   return 0;

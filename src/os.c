@@ -120,12 +120,6 @@ static void *cpu_routine(void *args)
 
 static void *ld_routine(void *args)
 {
-<<<<<<< HEAD
-=======
-#ifdef CPU_TLB
-	struct memphy_struct *tlb = ((struct mmpaging_ld_args *)args)->tlb;
-#endif
->>>>>>> fdedbad (update)
 #ifdef MM_PAGING
 	struct memphy_struct *mram = ((struct mmpaging_ld_args *)args)->mram;
 	struct memphy_struct **mswp = ((struct mmpaging_ld_args *)args)->mswp;
@@ -257,11 +251,6 @@ int main(int argc, char *argv[])
 	strcat(path, "input/");
 	strcat(path, argv[1]);
 	read_config(path);
-<<<<<<< HEAD
-
-=======
-	pthread_mutex_init(&mutex, NULL);
->>>>>>> fdedbad (update)
 	pthread_t *cpu = (pthread_t *)malloc(num_cpus * sizeof(pthread_t));
 	struct cpu_args *args =
 		(struct cpu_args *)malloc(sizeof(struct cpu_args) * num_cpus);

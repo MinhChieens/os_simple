@@ -105,7 +105,8 @@ int vmap_page_range(struct pcb_t *caller,           // process call
   // enlist_pgn_node(&caller->mm->fifo_pgn, pgn+pgit);
 
   fpit = frames;
-
+  uint32_t *pte = malloc(sizeof(uint32_t));
+  init_pte(pte, 1, 1, 0, 0, 0, 0);
   for (; pgit < pgnum; pgit++)
   {
     // uint32_t *pte = malloc(sizeof(uint32_t));
@@ -116,7 +117,9 @@ int vmap_page_range(struct pcb_t *caller,           // process call
     pte_set_fpn(pte, fpn);
     caller->mm->pgd[pgn + pgit] = *pte;
     int tfpn;
+#ifdef CPU_TLB
     tlb_cache_write(caller->tlb, caller->pid, pgn + pgit, 0, fpn);
+#endif
     tfpn = PAGING_FPN(caller->mm->pgd[pgn + pgit]);
     printf("TFPN %d\n", tfpn);
     printf("Mapped region [%ld->", ret_rg->rg_end);

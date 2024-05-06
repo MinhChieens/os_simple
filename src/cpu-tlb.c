@@ -38,6 +38,16 @@ int tlb_flush_tlb_of(struct pcb_t *proc, struct memphy_struct *mp)
 			mp->tlbtable->cache_line[i]->pid = -1;
 		}		
 	}
+	int index = 0;
+	for(int i = 0; i < CACHE_LINE; i++){
+		if(mp->tlbtable->cache_line[i]->pid != -1){
+			struct tlbline_struct *swap = mp->tlbtable->cache_line[i];
+			mp->tlbtable->cache_line[i] = mp->tlbtable->cache_line[index];
+			mp->tlbtable->cache_line[index] = swap;
+			index += 1;
+		}		
+	}
+	proc->tlb->tlbtable = mp->tlbtable;
   return 0;
 }
 
@@ -54,7 +64,23 @@ int tlballoc(struct pcb_t *proc, uint32_t size, uint32_t reg_index)
   val = __alloc(proc, 0, reg_index, size, &addr);
   TLBMEMPHY_dump(proc->tlb);
   /* TODO update TLB CACHED frame num of the new allocated page(s)*/
-  /* by using tlb_cache_read()/tlb_cache_write()*/  
+  /* by using tlb_cache_read()/tlb_cache_write()*/ 
+  struct vm_rg_struct temp = proc->mm->symrgtbl[reg_index];
+  for(int i = temp.rg_start; i < temp.rg_end; i += PAGING_PAGESZ){
+  	int pgn = PAGING_PGN(i);
+  	int frame = PAGING_FPN(proc->mm->pgd[pgn]);
+  	for(int j = 0; j < CACHE_LINE; j++){
+  		if(pgn == proc->tlb->tlbtable->cache_line[j]->pgnum &&
+  		proc->tlb->tlbtable->cache_line[j]->pid == proc->pid){
+  			//neu trang nho da ton tai trong tlb thi ta break vong lap
+  			break;
+  		}else if(proc->tlb->tlbtable->cache_line[j]->pid == -1){
+  			//neu chua ton tai thi ta ghi trang nho cua qua trinh proc vao TLB
+  			tlb_cache_write(proc->tlb,proc->pid,pgn,frame);
+  			break;
+  		}
+  	}
+  }
   return val;
 }
 
@@ -72,6 +98,7 @@ int tlbfree_data(struct pcb_t *proc, uint32_t reg_index)
   /* TODO update TLB CACHED frame num of freed page(s)*/
   /* by using tlb_cache_read()/tlb_cache_write()*/
   struct vm_rg_struct temp = proc->mm->symrgtbl[reg_index];
+  int check = -1;
   for(int i = temp.rg_start; i < temp.rg_end; i+= PAGING_PAGESZ){
   	int pgn = PAGING_PGN(i);
   	for(int j = 0; j < CACHE_LINE; j++){
@@ -80,11 +107,12 @@ int tlbfree_data(struct pcb_t *proc, uint32_t reg_index)
   			proc->tlb->tlbtable->cache_line[j]->pgnum = -1;
   			proc->tlb->tlbtable->cache_line[j]->frame = -1;
   			proc->tlb->tlbtable->cache_line[j]->pid = -1;
-  			return 0;
+  			check = 0;
   		}
   	}
   }
-  return -1;
+  if (check < 0) return -1;
+  return 0;
 }
 
 /*tlbread - CPU TLB-based read a region memory
